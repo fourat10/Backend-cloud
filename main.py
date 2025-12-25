@@ -1,7 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from sqlalchemy import text
 
 from database import SessionLocal, engine
 import models, schemas
@@ -12,16 +11,16 @@ app = FastAPI(
     description="API pour gérer les contacts",
     version="1.0.0"
 )
-origins = ["*"]
+
+# CORS Configuration - MUST BE BEFORE ROUTES
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,              # Liste des origines autorisées
-    allow_credentials=True,             # Autorise les cookies/credentials
-    allow_methods=["*"],                # Autorise toutes les méthodes (GET, POST, etc.)
-    allow_headers=["*"],                # Autorise tous les headers
-    expose_headers=["*"],               # Expose tous les headers dans la réponse
+    allow_origins=["*"],           # Allow all origins
+    allow_credentials=True,
+    allow_methods=["*"],           # Allow all methods including OPTIONS
+    allow_headers=["*"],           # Allow all headers
+    expose_headers=["*"],
 )
-
 
 # Create tables
 models.Base.metadata.create_all(bind=engine)
@@ -35,6 +34,13 @@ def get_db():
         db.close()
 
 
+# Add explicit OPTIONS handler for CORS preflight
+@app.options("/{path:path}")
+async def options_handler(path: str):
+    """Handle CORS preflight requests explicitly"""
+    return {}
+
+
 # Route racine
 @app.get("/")
 def root():
@@ -43,13 +49,23 @@ def root():
         "version": "1.0.0",
         "status": "healthy"
     }
+
+# Health check endpoint
+@app.get("/health")
+def health_check():
+    return {
+        "status": "healthy",
+        "service": "contacts-api"
+    }
+
 @app.get("/contacts", response_model=list[schemas.ContactResponse])
 def list_contacts(db: Session = Depends(get_db)):
     contacts = db.query(models.Contact).all()
     return contacts
 
-@app.post("/contacts")
+@app.post("/contacts", response_model=schemas.ContactResponse, status_code=201)
 def create_contact(contact: schemas.ContactCreate, db: Session = Depends(get_db)):
+    """Créer un nouveau contact"""
     new_contact = models.Contact(
         nom_complet=contact.nom_complet,
         email=contact.email,
@@ -61,14 +77,9 @@ def create_contact(contact: schemas.ContactCreate, db: Session = Depends(get_db)
     db.commit()
     db.refresh(new_contact)
 
-    return {
-        "message": "Contact created successfully",
-        "data": new_contact
-    }
+    return new_contact
 
-
-# DELETE un contact
-@app.delete("/contacts/{contact_id}")
+@app.delete("/contacts/{contact_id}", status_code=200)
 def delete_contact(contact_id: int, db: Session = Depends(get_db)):
     """Supprimer un contact"""
     contact = db.query(models.Contact).filter(models.Contact.id == contact_id).first()
@@ -79,7 +90,6 @@ def delete_contact(contact_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"message": "Contact supprimé avec succès"}
 
-# GET un contact par ID
 @app.get("/contacts/{contact_id}", response_model=schemas.ContactResponse)
 def get_contact(contact_id: int, db: Session = Depends(get_db)):
     """Récupérer un contact par son ID"""
