@@ -5,6 +5,9 @@ from sqlalchemy.orm import Session
 from database import SessionLocal, engine
 import models, schemas
 
+# Create tables FIRST
+models.Base.metadata.create_all(bind=engine)
+
 # Créer l'application FastAPI
 app = FastAPI(
     title="Contacts API",
@@ -12,18 +15,16 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS Configuration - MUST BE BEFORE ROUTES
+# CORS Configuration - CRITICAL: This MUST be the FIRST middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],           # Allow all origins
+    allow_origins=["*"],           # For production, use specific origins like ["https://yourdomain.com"]
     allow_credentials=True,
-    allow_methods=["*"],           # Allow all methods including OPTIONS
-    allow_headers=["*"],           # Allow all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
     expose_headers=["*"],
+    max_age=3600,                  # Cache preflight requests for 1 hour
 )
-
-# Create tables
-models.Base.metadata.create_all(bind=engine)
 
 # Dependency to get DB session
 def get_db():
@@ -32,14 +33,6 @@ def get_db():
         yield db
     finally:
         db.close()
-
-
-# Add explicit OPTIONS handler for CORS preflight
-@app.options("/{path:path}")
-async def options_handler(path: str):
-    """Handle CORS preflight requests explicitly"""
-    return {}
-
 
 # Route racine
 @app.get("/")
