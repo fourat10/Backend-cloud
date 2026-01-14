@@ -2,7 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
 DATABASE_URL = (
-    "mysql+pymysql://admin:chaimaharzi@database-1.c0lhyuzcqjjg.us-east-1.rds.amazonaws.com:3306/CloudDB"
+    "mysql+pymysql://admin:chaimaharzi@database-2.cioorvjuqwr0.us-east-1.rds.amazonaws.com:3306/CloudDB"
 )
 
 # Configuration du moteur avec pool de connexions
